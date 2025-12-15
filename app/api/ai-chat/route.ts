@@ -1,21 +1,39 @@
 import { NextResponse } from "next/server";
 
+type OrqMessage = {
+  content?: string;
+};
+
+type OrqChoice = {
+  message?: OrqMessage;
+};
+
+type OrqResponse = {
+  choices?: OrqChoice[];
+};
+
 export async function POST(req: Request) {
   try {
     const { message } = await req.json();
 
     if (!message) {
-      return NextResponse.json({ error: "Ingen besked sendt." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Ingen besked sendt." },
+        { status: 400 }
+      );
     }
 
     const ORQ_API_KEY = process.env.ORQ_API_KEY;
-    const ORQ_DEPLOYMENT_KEY = process.env.ORQ_DEPLOYMENT_KEY || "tryg_agent_v1";
+    const ORQ_DEPLOYMENT_KEY =
+      process.env.ORQ_DEPLOYMENT_KEY || "tryg_agent_v1";
 
     if (!ORQ_API_KEY) {
-      return NextResponse.json({ error: "Mangler ORQ_API_KEY" }, { status: 500 });
+      return NextResponse.json(
+        { error: "Mangler ORQ_API_KEY" },
+        { status: 500 }
+      );
     }
 
-    // 👉 Kald Orq nøjagtigt som cURL (inputs + key — ingen tom context)
     const res = await fetch("https://my.orq.ai/v2/deployments/invoke", {
       method: "POST",
       headers: {
@@ -25,14 +43,12 @@ export async function POST(req: Request) {
       body: JSON.stringify({
         key: ORQ_DEPLOYMENT_KEY,
         inputs: { question: message },
-        // context/metadata er valgfrit – udelades for at matche docs’ minimal payload
       }),
     });
 
-    const data = await res.json();
+    const data: OrqResponse = await res.json();
 
     if (!res.ok) {
-      // Giv fuld fejl videre til logs for nem fejlfinding
       console.error("Orq error:", res.status, JSON.stringify(data));
       return NextResponse.json(
         { error: "Orq fejl", details: data },
@@ -40,12 +56,20 @@ export async function POST(req: Request) {
       );
     }
 
-    const reply = data?.choices?.[0]?.message?.content ?? "Jeg kunne ikke finde et svar 😅";
+    const reply =
+      typeof data?.choices?.[0]?.message?.content === "string"
+        ? data.choices[0].message.content
+        : "Jeg kunne ikke finde et svar 😅";
+
     return NextResponse.json({ reply });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("AI route fejl:", err);
+
+    const message =
+      err instanceof Error ? err.message : String(err);
+
     return NextResponse.json(
-      { error: "Der opstod en serverfejl.", details: err?.message ?? String(err) },
+      { error: "Der opstod en serverfejl.", details: message },
       { status: 500 }
     );
   }
