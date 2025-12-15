@@ -1,20 +1,11 @@
 import { NextResponse } from "next/server";
 import { Orq } from "@orq-ai/node";
 
-// ✅ Define the expected structure of the Orq API response
-type CompletionResponse = {
-  choices: {
-    message: {
-      content: string;
-    };
-  }[];
-};
+// BUILD_MARKER_1701_FINAL
 
 export async function POST(req: Request) {
-  // ✅ Parse incoming request body
   const { company, insurances } = await req.json();
 
-  // ✅ Validate input
   if (!company || !Array.isArray(insurances)) {
     return NextResponse.json(
       { error: "Ugyldigt input." },
@@ -22,14 +13,12 @@ export async function POST(req: Request) {
     );
   }
 
-  // ✅ Initialize Orq client
   const client = new Orq({
     apiKey: process.env.ORQ_API_KEY!,
     environment: "production",
   });
 
   try {
-    // ✅ Invoke Orq AI model
     const completion = await client.deployments.invoke({
       key: "tryg_compare",
       inputs: {
@@ -39,14 +28,29 @@ export async function POST(req: Request) {
       },
     });
 
-    // ✅ Type cast response safely
-    const completionTyped = completion as CompletionResponse;
+    const extractContent = (value: unknown): string | null => {
+      if (!value || typeof value !== "object" || !("choices" in value)) {
+        return null;
+      }
 
-    // ✅ Safely extract reply
-    const reply =
-      completionTyped?.choices?.[0]?.message?.content ?? "Kunne ikke hente AI-svar.";
+      const choices = (value as { choices: unknown }).choices;
+      if (!Array.isArray(choices)) return null;
 
-    // ✅ Return reply
+      const message = choices[0]?.message as unknown;
+      if (
+        message &&
+        typeof message === "object" &&
+        "content" in message &&
+        typeof (message as { content?: unknown }).content === "string"
+      ) {
+        return (message as { content: string }).content;
+      }
+
+      return null;
+    };
+
+    const reply = extractContent(completion) ?? "Kunne ikke hente AI-svar.";
+
     return NextResponse.json({ reply });
   } catch (error) {
     console.error("Orq fejl:", error);
