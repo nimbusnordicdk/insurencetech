@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import { Orq } from "@orq-ai/node";
 
-// BUILD_MARKER_1701_FINAL
-
 export async function POST(req: Request) {
   const { company, insurances } = await req.json();
 
@@ -28,19 +26,17 @@ export async function POST(req: Request) {
       },
     });
 
-    // 🔒 ABSOLUT TYPESIKKER LØSNING
-    let reply = "Kunne ikke hente AI-svar.";
+    // 🔥 HARD FIX: ingen TypeScript-typing, ingen message.content
+    const json = JSON.parse(JSON.stringify(completion));
 
-    if (
-      completion &&
-      typeof completion === "object" &&
-      "choices" in completion &&
-      Array.isArray((completion as any).choices) &&
-      (completion as any).choices[0]?.message &&
-      typeof (completion as any).choices[0].message.content === "string"
-    ) {
-      reply = (completion as any).choices[0].message.content;
-    }
+    const reply =
+      json &&
+      json.choices &&
+      json.choices[0] &&
+      json.choices[0].message &&
+      typeof json.choices[0].message.content === "string"
+        ? json.choices[0].message.content
+        : "Kunne ikke hente AI-svar.";
 
     return NextResponse.json({ reply });
   } catch (error) {
