@@ -16,7 +16,7 @@ type OrqCompletion = {
 export async function POST(req: Request) {
   const { company, insurances } = await req.json();
 
-  if (!company || !insurances || !Array.isArray(insurances)) {
+  if (!company || !Array.isArray(insurances)) {
     return NextResponse.json(
       { error: "Ugyldigt input." },
       { status: 400 }
@@ -29,14 +29,16 @@ export async function POST(req: Request) {
   });
 
   try {
-    const completion = (await client.deployments.invoke({
+    const raw = await client.deployments.invoke({
       key: "tryg_compare",
       inputs: {
         question: `Sammenlign Tryg med ${company} for følgende forsikringer: ${insurances.join(
           ", "
         )}. Giv en kort venlig tekst til kunden.`,
       },
-    })) as OrqCompletion;
+    });
+
+    const completion = raw as unknown as OrqCompletion;
 
     const reply =
       typeof completion?.choices?.[0]?.message?.content === "string"
