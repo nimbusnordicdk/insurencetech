@@ -28,28 +28,19 @@ export async function POST(req: Request) {
       },
     });
 
-    const extractContent = (value: unknown): string | null => {
-      if (!value || typeof value !== "object" || !("choices" in value)) {
-        return null;
-      }
+    // 🔒 ABSOLUT TYPESIKKER LØSNING
+    let reply = "Kunne ikke hente AI-svar.";
 
-      const choices = (value as { choices: unknown }).choices;
-      if (!Array.isArray(choices)) return null;
-
-      const message = choices[0]?.message as unknown;
-      if (
-        message &&
-        typeof message === "object" &&
-        "content" in message &&
-        typeof (message as { content?: unknown }).content === "string"
-      ) {
-        return (message as { content: string }).content;
-      }
-
-      return null;
-    };
-
-    const reply = extractContent(completion) ?? "Kunne ikke hente AI-svar.";
+    if (
+      completion &&
+      typeof completion === "object" &&
+      "choices" in completion &&
+      Array.isArray((completion as any).choices) &&
+      (completion as any).choices[0]?.message &&
+      typeof (completion as any).choices[0].message.content === "string"
+    ) {
+      reply = (completion as any).choices[0].message.content;
+    }
 
     return NextResponse.json({ reply });
   } catch (error) {
