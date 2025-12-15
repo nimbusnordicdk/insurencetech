@@ -1,9 +1,20 @@
 import { NextResponse } from "next/server";
 import { Orq } from "@orq-ai/node";
 
+// ✅ Define the expected structure of the Orq API response
+type CompletionResponse = {
+  choices: {
+    message: {
+      content: string;
+    };
+  }[];
+};
+
 export async function POST(req: Request) {
+  // ✅ Parse incoming request body
   const { company, insurances } = await req.json();
 
+  // ✅ Validate input
   if (!company || !Array.isArray(insurances)) {
     return NextResponse.json(
       { error: "Ugyldigt input." },
@@ -11,12 +22,14 @@ export async function POST(req: Request) {
     );
   }
 
+  // ✅ Initialize Orq client
   const client = new Orq({
     apiKey: process.env.ORQ_API_KEY!,
     environment: "production",
   });
 
   try {
+    // ✅ Invoke Orq AI model
     const completion = await client.deployments.invoke({
       key: "tryg_compare",
       inputs: {
@@ -26,18 +39,14 @@ export async function POST(req: Request) {
       },
     });
 
-    // 🔥 HARD FIX: ingen TypeScript-typing, ingen message.content
-    const json = JSON.parse(JSON.stringify(completion));
+    // ✅ Type cast response safely
+    const completionTyped = completion as CompletionResponse;
 
+    // ✅ Safely extract reply
     const reply =
-      json &&
-      json.choices &&
-      json.choices[0] &&
-      json.choices[0].message &&
-      typeof json.choices[0].message.content === "string"
-        ? json.choices[0].message.content
-        : "Kunne ikke hente AI-svar.";
+      completionTyped?.choices?.[0]?.message?.content ?? "Kunne ikke hente AI-svar.";
 
+    // ✅ Return reply
     return NextResponse.json({ reply });
   } catch (error) {
     console.error("Orq fejl:", error);
